@@ -1,0 +1,406 @@
+---
+title: "Predizendo Prognóstico de Mortalidade com Dados Sintéticos"
+subtitle: "Mortality Prognostic Prediction with Sintetic Data"
+output: pdf_document
+header-includes:
+- \renewcommand{\figurename}{Figura}
+- \renewcommand{\tablename}{Tabela}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r dados, include=FALSE, echo=FALSE, results='hide'}
+library(tidyverse)
+library(lubridate)
+
+conditions_scenario01 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario01/csv/conditions.csv"))
+
+encounters_scenario01 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario01/csv/encounters.csv"))
+
+conditions_scenario02 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario02/csv/conditions.csv"))
+
+encounters_scenario02 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario02/csv/encounters.csv"))
+
+patients_scenario01 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario01/csv/patients.csv"))
+
+patients_scenario02 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario02/csv/patients.csv"))
+
+allergies_scenario01 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario01/csv/allergies.csv"))
+
+allergies_scenario02 <- read_csv(url("https://raw.githubusercontent.com/santanche/lab2learn/master/data/synthea/scenario02/csv/allergies.csv"))
+
+```
+
+```{r filtro, eval=FALSE}
+conditions_scenario01
+encounters_scenario01
+patients_scenario01
+
+conditions_scenario01 %>%
+  mutate(CODE = as.character(CODE)) %>%
+  group_by(CODE, DESCRIPTION) %>%
+  summarise(n = n_distinct(PATIENT)) %>%
+  ungroup() %>%
+  arrange(desc(n))
+
+conditions_scenario01 %>%
+  filter(DESCRIPTION %in% c("Myocardial Infarction", 
+                            "Cardiac Arrest")) %>%
+  select(CODE) %>%
+  unique() #Myocardial Infarction Code 22298006, Cardiac Arrest 410429000
+
+conditions_scenario01 %>%
+  filter(CODE %in% c("22298006", "410429000"))
+
+encounters_scenario01 %>%
+  mutate(CODE = as.character(CODE)) %>%
+  filter(CODE %in% c("22298006", "410429000"))
+```
+
+```{r preparação das bases, include=FALSE, echo=FALSE, results='hide'}
+# Bases de dados em cada um dos cenários com as variáveis que serão utilizadas
+base_scenario01 <- encounters_scenario01 %>%
+  separate(START, c("START", "HOUR"), " ") %>%
+  mutate(CODE = as.character(CODE),
+         START = ymd(START)) %>%
+  filter(CODE %in% c("22298006", "410429000"), ENCOUNTERCLASS == "emergency") %>%
+  left_join(patients_scenario01, by = c("PATIENT" = "Id")) %>%
+  left_join(allergies_scenario01 %>%
+              select(PATIENT, TYPE, CATEGORY, SEVERITY1), by = "PATIENT") %>%
+  select(PATIENT, "ENCOUNTER" = Id, CODE, DESCRIPTION, START, DEATHDATE,
+         ETHNICITY, GENDER, HEALTHCARE_EXPENSES, HEALTHCARE_COVERAGE,
+         TYPE, CATEGORY, SEVERITY1) 
+
+base_scenario02 <- encounters_scenario02 %>%
+  separate(START, c("START", "HOUR"), " ") %>%
+  mutate(CODE = as.character(CODE),
+         START = ymd(START)) %>%
+  filter(CODE %in% c("22298006", "410429000"), ENCOUNTERCLASS == "emergency") %>%
+  left_join(patients_scenario02, by = c("PATIENT" = "Id")) %>%
+  left_join(allergies_scenario01 %>%
+              select(PATIENT, TYPE, CATEGORY, SEVERITY1), by = "PATIENT") %>%
+  select(PATIENT, "ENCOUNTER" = Id, CODE, DESCRIPTION, START, DEATHDATE,
+         ETHNICITY, GENDER, HEALTHCARE_EXPENSES, HEALTHCARE_COVERAGE,
+         TYPE, CATEGORY, SEVERITY1) 
+
+# Resumo das bases de dados
+# summary(base_scenario01)
+# summary(base_scenario02)
+
+# Criação de variáveis para modelagem
+base_scenario01 <- base_scenario01 %>%
+  mutate(DIFF = DEATHDATE-START,
+         DEATH = if_else(DIFF <= 365, 1, 0),
+         DEATH = if_else(is.na(DEATH), 0, DEATH),
+         ALLERGIES = if_else(is.na(TYPE), 0, 1),
+         DEATH = as.factor(DEATH),
+         ALLERGIES = as.factor(ALLERGIES)) %>%
+  group_by(PATIENT) %>%
+  mutate(N_ENCOUNTERS = n_distinct(ENCOUNTER)) %>%
+  ungroup()
+
+base_scenario02 <- base_scenario02 %>%
+  mutate(DIFF = DEATHDATE-START,
+         DEATH = if_else(DIFF <= 365, 1, 0),
+         DEATH = if_else(is.na(DEATH), 0, DEATH),
+         ALLERGIES = if_else(is.na(TYPE), 0, 1),
+         DEATH = as.factor(DEATH),
+         ALLERGIES = as.factor(ALLERGIES)) %>%
+  group_by(PATIENT) %>%
+  mutate(N_ENCOUNTERS = n_distinct(ENCOUNTER)) %>%
+  ungroup()
+
+```
+
+
+## Apresentação
+
+O presente projeto foi originado no contexto das atividades da disciplina de pós-graduação, Ciência e Visualização de Dados em Saúde, oferecida no primeiro semestre de 2022, na Unicamp, e foi desenvolvido por Mariângela Lima Rodrigues, RA 183863, aluna de mestrado em Estatística.
+
+
+## Contextualização da Proposta
+
+O objetivo deste estudo foi predizer o prognóstico de um paciente morrer em um período de até 1 ano após ter dado entrada na emergência devido a um infarto no miocárdio ou uma parada cardíaca. 
+
+
+### Ferramentas
+
+- Software R Studio versão 4.1.2
+
+
+## Metodologia
+
+Dado o objetivo de predizer a morte de um paciente que chega à emergência devido a um infarto ou uma parada cardíaca em um período de até um ano (365 dias) após seu encontro na emergência, observa-se que o modelo ajustado deverá ser capaz de classificar um paciente, dado um conjunto de fatores observados, de acordo com uma resposta binária, morre ou não em até um ano. Deste modo, o problema apresentado trata da proposição de um modelo de classificação com respeito ao prognóstico de morte de um paciente. E, consideradas estas informações, propõe-se a construção de um Modelo de Regressão Logística Binária.
+
+A Regressão Logística trata de uma metodologia estatística empregada com propósitos como previsão de risco, classificação e determinação de características, por exemplo. No presente trabalho será empregada a vertente classificatória, na qual é ajustado um modelo de tal modo que, a partir da busca por identificação de padrões de associação entre as observações, seja possível classificá-las em suas respectivas categorias. 
+
+
+### Modelo de Regressão Logística Binária
+
+A Regressão Logística é um modelo que permite a estimação da probabilidade de ocorrência de um evento a partir de observações aleatórias e, a partir desta informação, é possível classificar observações em suas respectivas categorias de acordo com a probabilidade de pertencer a cada uma destas.
+
+No cenário de Regressão Logística Binária a variável resposta, geralmente, é identificada como
+
+\begin{equation}
+Y=
+\begin{cases}
+1, \ \ se \ ocorre \ o \ evento \ de \ interesse,\\
+0, \ \ se \ não \ ocorre \ o \ evento \ de \ interesse
+\end{cases}
+\end{equation}
+
+onde o evento de interesse é determinado de acordo com os objetivos do estudo.
+
+Dito isto, o modelo de classificação é dado por
+
+\begin{equation}
+P(Y=1)=\frac{1}{1+e^{-g(x)}},
+\end{equation}
+
+onde $g(x)=\beta_0+\beta_1X_1+...+\beta_pX_p$ trata de uma função linear das $p$ variáveis independentes a serem utilizadas no ajuste da variável resposta.
+
+Para que o ajuste do modelo seja realizado é necessária a estimação dos parâmetros da função linear $g(x)$, os coeficientes $\beta_i$, $i=1,2,...,p$. O processo de estimação ocorre a partir do Método de Máxima Verossimilhança, que busca pelos parâmetros estimados $\hat\beta_i$ tais que tenham maior probabilidade de se comportarem como os parâmetros reais observados na população. 
+
+Mais detalhes com respeito ao modelo e todo o processo de construção e análise do mesmo podem ser observadas em Gonzalez (2018).
+
+Além disso, neste estudo utilizou-se a técnica de seleção de variáveis, Stepwise (Seber e Lee, 2012), técnica esta que permite, no contexto de análise de regressão logística, avaliar quais variáveis são estatisticamente significativas para a classificação de uma observação e, com isto, otimiza o modelo ajustado de acordo com as covariáveis disponíveis para a modelagem.
+
+
+### Bases adotadas para o Estudo
+
+- scenario01
+
+- scenario02
+
+
+## Resultados Obtidos
+
+Foram construídos dois modelos de regressão logística que serão apresentados a seguir. Para a construção destes modelos foram utilizadas as seguintes variáveis descritivas:
+
+- Doença (DESCRIPTION - CODE): infarto ou parada cardíaca;
+
+- Gênero do paciente (GENDER): masculino ou feminino;
+
+- Etnia do paciente (ETHNICITY): hispânico ou não hispânico;
+
+- Alergias (ALLERGIES): indica se o paciente possui algum tipo de alergia ou não;
+
+- Número de encontros (N_ENCOUNTERS): quantas vezes o paciente foi até a emergência;
+
+- Valor total de despesas com saúde ao longo da vida (HEALTHCARE_EXPENSES) e
+
+- Valor total de despesas cobertas pelo seguro de saúde ao longo da vida (HEALTHCARE_COVERAGE).
+
+Como mencionado na seção de metodologia, o modelo ajustado foi um modelo de regressão logística. O primeiro modelo foi treinado e validado para os dados do scenario01 e testado nos dados do scenario02, este caso será referido como caso 1. Já o segundo modelo, foi treinado e validado no scenario02 e testado nos dados do scenario01, caso 2.
+
+Para obter os modelos que serão apresentados a seguir, foram separados os conjuntos de dados para treinamento (70%) e validação (30%) de maneira aleatória, conforme apresentado no código abaixo. Foram fixadas as sementes, 001 e 002, a fim de que a partir dos dados seja possível obter a mesma amostra utilizada para treino/validação do modelo.
+
+```{r, echo=TRUE}
+# CASO 1: Modelo treinado no scenario01 e testado no scenario02
+set.seed(001)
+
+# Amostra de treino e validação no scenario01
+n_scenario01 <- round(nrow(base_scenario01)*0.7)
+sample_train_scenario01 <- sample(nrow(base_scenario01), 
+                                  size = n_scenario01, replace = FALSE)
+
+train_scenario01 <- base_scenario01[sample_train_scenario01,] %>%
+  select(DESCRIPTION, ETHNICITY, GENDER, HEALTHCARE_EXPENSES,
+         HEALTHCARE_COVERAGE, ALLERGIES, N_ENCOUNTERS, DEATH)
+
+test_scenario01 <- base_scenario01[-sample_train_scenario01,] %>%
+  select(DESCRIPTION, ETHNICITY, GENDER, HEALTHCARE_EXPENSES,
+         HEALTHCARE_COVERAGE, ALLERGIES, N_ENCOUNTERS, DEATH)
+
+# CASO 2: Modelo treinado no scenario02 e testado no scenario01
+set.seed(002)
+
+# Amostra de treino e validação no scenario01
+n_scenario02 <- round(nrow(base_scenario02)*0.7)
+sample_train_scenario02 <- sample(nrow(base_scenario02), 
+                                  size = n_scenario02, replace = FALSE)
+
+train_scenario02 <- base_scenario02[sample_train_scenario02,] %>%
+  select(DESCRIPTION, ETHNICITY, GENDER, HEALTHCARE_EXPENSES,
+         HEALTHCARE_COVERAGE, N_ENCOUNTERS, DEATH)
+
+test_scenario02 <- base_scenario02[-sample_train_scenario02,] %>%
+  select(DESCRIPTION, ETHNICITY, GENDER, HEALTHCARE_EXPENSES,
+         HEALTHCARE_COVERAGE, N_ENCOUNTERS, DEATH)
+
+```
+
+```{r, include=FALSE, echo=FALSE, results='hide'}
+library(pROC)
+library(caret)
+# CASO 1
+# Ajuste do modelo e seleção de variáveis via stepwise
+fit_scenario01 <- glm(DEATH ~ ., 
+           data = train_scenario01,
+           family = "binomial")
+
+fit_scenario01 <- step(fit_scenario01, direction = "both")
+
+# Características do modelo final
+summary(fit_scenario01)
+predicted_scenario01 <- predict(fit_scenario01, test_scenario01,
+                                type="response")
+
+# Performance do modelo no conjunto de validação
+auc(test_scenario01$DEATH, predicted_scenario01)
+plot(roc(test_scenario01$DEATH, predicted_scenario01))
+
+```
+
+```{r, include=FALSE, echo=FALSE, results='hide'}
+# CASO 2
+# Ajuste do modelo e seleção de variáveis via stepwise
+fit_scenario02 <- glm(DEATH ~ ., 
+           data = train_scenario02,
+           family = "binomial") #diferença: scenario02 não temos nenhum paciente com alergias, então não conseguimos incluir essa covariável no modelo
+
+fit_scenario02 <- step(fit_scenario02, direction = "both")
+
+# Características do modelo final
+summary(fit_scenario02)
+predicted_scenario02 <- predict(fit_scenario02, test_scenario02,
+                                type="response")
+
+# Performance do modelo no conjunto de validação
+auc(test_scenario02$DEATH, predicted_scenario02)
+plot(roc(test_scenario02$DEATH, predicted_scenario02))
+
+```
+
+Dadas as amostras conforme apresentado, foi ajustado um modelo de regressão logística em cada um dos cenários, com o auxílio da função `glm()`, e em seguida a este ajuste inicial, contendo todas as covariáveis supracitadas, foi aplicada a técnica de seleção de variáveis setpwise e obteve-se o modelo que melhor ajusta os dados e possui melhores características preditivas. A Figura 1 apresenta as curvas ROC, da performance do modelo no conjunto de dados de validação do modelo, para os casos 1 e 2, respectivamente.
+
+```{r, fig.align='center', out.width='50%', fig.cap='Curva ROC (Receiver Operating Characteristic) para os modelos dos casos 1 e 2 aplicados aos dados de validação.'}
+par(mfrow = c(1,2))
+plot(roc(test_scenario01$DEATH, predicted_scenario01),
+     ylab = "Sensitividade", xlab = "Especificidade",
+     main = "CASO 1", cex.main=1)
+plot(roc(test_scenario02$DEATH, predicted_scenario02),
+     ylab = "Sensitividade", xlab = "Especificidade",
+     main = "CASO 2", cex.main=1)
+
+```
+
+\newpage
+
+Respectivamente, os modelos no contexto de validação apresentaram AUC de 0.9659 e 0.7571, valores bastante satisfatórios. Logo em seguida, dado que os modelos propostos apresentaram boa performance, os mesmos foram testados nos conjuntos de dados de interesse, para o caso 1, conforme aponta a Figura 2, a performance do modelo nos dados de teste foi também satisfatória, com AUC igual a 0.8528.
+
+```{r, fig.align='center', out.width='50%', fig.cap='Curva ROC (Receiver Operating Characteristic) para o modelo do caso 1 aplicado aos dados do scenario02.'}
+# CASO 1
+# Teste do modelo no scenario02
+predicted_scenario01_02 <- predict(fit_scenario01, base_scenario02,
+                                type="response")
+
+# auc(base_scenario02$DEATH, predicted_scenario01_02)
+plot(roc(base_scenario02$DEATH, predicted_scenario01_02),
+     ylab = "Sensitividade", xlab = "Especificidade",
+     main = "CASO 1", cex.main=1)
+
+```
+
+\newpage
+
+Para além disso, quando observada a acurácia do modelo do caso 1, verificou-se, conforme a matriz de confusão apresentada abaixo (Tabela 1), acurácia igual à 0.8, com intervalo de confiança de 95% dado por (0.6703, 0.8957), que reafirma a qualidade da predição. E ainda mais, quando analisados os resultados do modelo também podemos observar a sensibilidade do modelo, definida pela razão entre o número de predições verdadeiras positivas sobre a quantidade total de observações positivas, que matematicamente equivale a $$Sensibilidade = \frac{Verdadeiro\ Positivo}{Verdadeiro\ Positivo\ +\ Falso\ Negativo},$$ uma métrica que permite mensurar o quanto o modelo detecta corretamente os resultados classificados como os eventos de interesse (neste caso, predizer corretamente a morte do paciente), observou-se sensibilidade de 67%. Apesar de não ser tão alta, a sensibilidade ainda aponta para um ajuste razoável dos dados, indicando a qualidade do modelo de predição proposto. 
+
+```{r, include=FALSE, echo=FALSE, results='hide'}
+# CASO 1
+predicted_scenario01_02 <- data.frame(predict = predict(fit_scenario01,
+                                                        base_scenario02,
+                                                        type="response"))
+
+predicted_scenario01_02 <- predicted_scenario01_02 %>% 
+  mutate(predict = as.factor(ifelse(predict > .5, "1", "0")))
+
+confusionMatrix(base_scenario02$DEATH, 
+                predicted_scenario01_02$predict)
+
+# Sensibilidade
+(16/(16+8))*100
+
+```
+
+```{r}
+library(kableExtra)
+library(e1071)
+tabela <- data.frame( "Predito" = c("Predito", "Predito"),  "Observado" = c("Óbito", "Não óbito"),
+           "Óbito" = c("16", "3"), "Não óbito" = c("8", "16"))
+
+kableExtra::kable(tabela, "latex", booktabs=T, col.names= c("", "", "Óbito", "Não óbito"), align="llcc", escape=FALSE, linesep = "", caption = "Matriz de Confusão - Modelo do caso 1 aplicado aos dados do scenario02") %>%
+  collapse_rows(c(1,2),latex_hline = "major") %>%
+  kable_styling(position="center", latex_options = "HOLD_position") %>%
+  add_header_above(c(" " = 2,"Real" = 2))
+```
+
+Já no caso 2, conforme aponta a Tabela 2 e a Figura 3 juntamente com o valor do AUC (0.8716) do modelo testado no scenario02, o segundo modelo também apresentou boa performance. Entretanto, é necessário ressaltar que neste segundo cenário foi preciso remover a covariável que indica a presença de alergias, uma vez que no scenario02 nenhum paciente da amostra possuía algum tipo de alergia. 
+
+```{r}
+tabela <- data.frame( "Predito" = c("Predito", "Predito"),  "Observado" = c("Óbito", "Não óbito"),
+           "Óbito" = c("23", "6"), "Não óbito" = c("5", "57"))
+
+kableExtra::kable(tabela, "latex", booktabs=T, col.names= c("", "", "Óbito", "Não óbito"), align="llcc", escape=FALSE, linesep = "", caption = "Matriz de Confusão - Modelo do caso 2 aplicado aos dados do scenario01") %>%
+  collapse_rows(c(1,2),latex_hline = "major") %>%
+  kable_styling(position="center", latex_options = "HOLD_position") %>%
+  add_header_above(c(" " = 2,"Real" = 2))
+```
+
+Exceto este detalhe, considerando também as métricas do modelo, observou-se acurácia de 0.8791, com intervalo de confiança de 95% igual a (0.7940, 0.9381), e além disso, sensibilidade de 82%. Um desempenho melhor do que o modelo apresentado para o caso 1.
+
+```{r, fig.align='center', out.width='50%', fig.cap='Curva ROC (Receiver Operating Characteristic) para o modelo do caso 2 aplicado aos dados do scenario01.'}
+# CASO 2
+# Teste do modelo no scenario01
+predicted_scenario02_01 <- predict(fit_scenario02, base_scenario01,
+                                type="response")
+
+# auc(base_scenario01$DEATH, predicted_scenario02_01)
+plot(roc(base_scenario01$DEATH, predicted_scenario02_01),
+     ylab = "Sensitividade", xlab = "Especificidade",
+     main = "CASO 2", cex.main=1)
+
+```
+
+```{r, include=FALSE, echo=FALSE, results='hide'}
+# CASO 2
+predicted_scenario02_01 <- data.frame(predict = predict(fit_scenario02,
+                                                        base_scenario01,
+                                                        type="response"))
+
+predicted_scenario02_01 <- predicted_scenario02_01 %>% 
+  mutate(predict = as.factor(ifelse(predict > .5, "1", "0")))
+
+confusionMatrix(base_scenario01$DEATH, 
+                predicted_scenario02_01$predict)
+
+# Sensibilidade
+(23/(23+5))*100
+
+```
+
+\newpage
+
+## Discussão
+
+Conforme apresentado, os modelos, tanto no caso 1 quanto no caso 2, apresentaram performance razoáveis no cenário de predição do prognóstico dos pacientes dos dados do scenario01 e scenario02. Apesar disto, observou-se que para o caso 2 não foi possível considerar a variável com respeito a alergias, uma vez que todos os pacientes da amostra não possuíam nenhum tipo de alergia e, portanto, o modelo não seria capaz de utilizar a informação.
+
+## Conclusão
+
+Com o intuito de predizer o prognóstico de morte, em até um ano, de um paciente que chega a emergência devido a um infarto ou uma parada cardíaca, foram construídos modelos de regressão logística em diferentes cenários, usando diferentes conjuntos de dados. Dito isto, treinados e validados os modelos, observou-se um bom desempenho de ambas as propostas, entretanto, ressalta-se que o número de observações para o ajuste do modelo foi razoavelmente pequeno, menos de 100 observações, e este fato pode comprometer os resultados obtidos. 
+
+Como considerações finais, ficam as seguintes ressalvas a respeito do trabalho desenvolvido:
+
+1. O ajuste poderia ser melhorado caso aumentássemos o tamanho amostral e
+
+2. A amostra não possui uma distribuição equilibrada com respeito a todas as covariáveis, o que implicou na necessidade de remoção de uma delas para que o segundo modelo pudesse ser ajustado.
+
+Com respeito às dificuldades enfrentadas, ressalto mais uma vez a dificuldade com a linguagem de programação e acredito que se tivesse mais tempo poderia ter me aprofundado mais nas técnicas de machine learning e assim teria produzido um trabalho melhor estruturado e com um nível de absorção de conteúdo muito maior do que o que de fato consegui absorver. Além disso, também senti muita dificuldade para conseguir estruturar o projeto no formato solicitado, pois confesso que não tenho familiaridade com o Github.
+
+## Referências Bibliográficas
+
+GONZALEZ, Leandro de Azevedo. Regressão Logística e suas Aplicações, 2018.
+
+SEBER, George AF; LEE, Alan J. Análise de regressão linear . John Wiley & Filhos, 2012.
