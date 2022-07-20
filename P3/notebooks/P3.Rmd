@@ -17,7 +17,8 @@ library(corrplot)
 library(polycor)
 library(kableExtra)
 library(e1071)
-
+library(caret)
+library(neuralnet)
 ```
 
 ## Apresentação
@@ -57,49 +58,23 @@ Nesse contexto, a tecnologia tem se mostrado cada vez mais importante, possibili
 
 ## Método e Resultados
 
-Dada a importância da tecnologia no processo de diagnóstico de doenças, o objetivo do presente trabalho é a reprodução da aplicação do algoritmo de Máquinas de Vetores Suporte (Support Vector Machines, SVM) para classificação, e para além disso a aplicação do SVM com o intuito de prever o diagnóstico de câncer de mama a partir do conjunto de dados Breast Cancer Wisconsin (Diagnostic) Data Set \footnote{https://www.kaggle.com/uciml/breast-cancer-wisconsin-data}, disponível em domínio público, experimento realizado por Silva et.al (2019). No artigo de referência os autores compararam o SVM e a técnica de redes neurais, neste projeto foi estudado apenas o cenário do SVM.
+Dada a importância da tecnologia no processo de diagnóstico de doenças, o objetivo do presente trabalho é a reprodução da aplicação do algoritmo de Redes Neurais para detecção de câncer de mama a partir do conjunto de dados Breast Cancer Wisconsin (Diagnostic) Data Set \footnote{https://www.kaggle.com/uciml/breast-cancer-wisconsin-data}, disponível em domínio público. 
 
-O algortimo Support Vector Machines (SVM), em um caso binário, parametriza as variáveis respostas categóricas como 1 e -1, e a partir disto enxerga cada vetor de variável explicativa como um ponto em um espaço multidimensional de tamanho ($n-1$), onde $n$ representa o número de variáveis disponíveis. Na sequência, é traçado um hiperplano que separa as respostas marcadas como 1 daquelas marcadas como -1 (fronteira de decisão).
+As Redes Neurais (RN) são sistemas complexos que funcionam de forma similar ao sistema nervoso humano e são capazes de, através de estruturas de associação (conexões), encontrar padrões de comportamento a partir de uma entrada fornecida.
 
-A equação do hiperplano é dada por dois parâmetros: um vetor de pesos $w$ de mesma dimensionalidade do vetor de variáveis explicativas e um número real $b$ tal que:
-$$wx-b = 0,$$ 
+Uma rede neural artificial funciona como um algoritmo de Machine Learning, isto é, dada uma entrada de dados e a especificação do tipo de resposta desejada, obtem-se um ajuste de sinapses/funções matemáticas e suas respectivas importâncias dentro de um "emaranhado" de conexões até que seja possível caracterizar o fenômeno em análise garantindo que o erro cometido seja mínimo.
 
-onde $wx=w(1)x(1)+...+w(m)x(m)$, sendo $m$ a dimensão do vetor $x$.
+O neurônio, ou nó, é a unidade de processamento fundamental de uma rede neural. De forma resumida, durante o processo de aprendizagem a rede neural armazena o conhecimento obtido através dos pesos de cada uma das conexões realizadas, extrai mais informações externas, aprimora suas estimativas da importância das sinapses e com isto, minimiza o erro cometido (no caso de classificação binária, minimiza-se a entropia cruzada - equação \ref{eq:ec}).
 
-Assim, a predição para qualquer vetor de variáveis explicativas $x$ é dada por:
+$$
+E(W) = -\sum_{i=1}^{N}\sum_{k=1}^{K}y_{ik}log(\hat{y_{ik}})
+$$
 
-$$y = sign(wx -b),$$
+onde $i$ é o índice das N observações disponíveis, $k$ a classe da resposta, $y_{ik}$ é o valor real da observação $i$ da classe $k$ e $\hat{y_{ik}}$ é o valor predito da observação $i$ da classe $k$.
 
-onde $sign$ é um operador matemático que retorna 1 se a observação pertence a classe dessa referência e -1 caso contrário. 
+De modo geral, para minimizar a entropia utiliza-se o gradiente descendente no algoritmo de backpropagation. Com a função de ativação softmax e combinada com a função de perda de entropia cruzada, a rede neural é configura um modelo de regressão logística simples. 
 
-O SVM busca potencializar o conjunto de dados e encontrar os melhores valores $w^*$ e $b^*$ para os parâmetros $w$ e $b$, respectivamente. Um vez encontrados, o modelo $f(x)$ passa a ser definido por:
-
-$$f(x) = sign(w^*x-b^*).$$
-
-Algumas restrições devem ser levadas em conta ao otimizar $w$ e $b$. Uma vez que cada observação do conjunto de dados é dada como um par ($x_i, y_i$), onde $x_i$ é o vetor de variáveis explicativas da observação $i$ e $y_i$ é a resposta dada pelos valores -1 ou 1, a primeira restrição a ser levada em conta é definida por:
-
-$$wx_i-b \geq 1, se \ \ y_i=1$$
-$$wx_i-b \leq -1, se \ \ y_i=-1$$
-
-Outra restrição é encontrar um hiperplano que separe as observações com a máxima margem, sendo que a margem é a distância entre a observação mais próxima de cada uma das duas categorias. A fronteira de decisão será equidistante às margens. Uma margem maior contribui  para uma melhor generalização, que é o quão bem o modelo classifica novas observações. 
-
-Portanto encontrar $w^*$ e $b^*$ consiste em minimizar a norma($w$) de tal forma que $y_i(wx_i - b) \geq 1$ para $i=1,...,m$ (forma compacta de representar as duas restrições apresentadas anteriormente.
-
-Na Figura (\ref{fig:metodologia}) é possível visualizar o funcionamento do SVM quando há duas variáveis explicativas. Dispondo das categorias azul (1) e laranja (-1), são traçadas as respectivas margens e a fronteira de decisão é a linha vermelha. Observações acima desta linha são classificadas como azuis e abaixo, como laranjas. 
-
-Note também, que as margens definem hiperplanos paralelos e a distância entre elas é dada por $\frac{2}{norma(w)}$.
-Assim, quanto menor for a $norma(w)$, maior será a distância entre as margens e tenho uma maior separabilidade dos dados. 
-
-Esta versão do algoritmos é chamada de modelo linear, pois a fronteira de decisão consiste em uma linha reta (plano ou hiperplano). 
-
-```{r metodologia, echo=FALSE, fig.align='center', fig.cap = "Exemplo de um modelo SVM para vetores binários de variáveis explicativas. Fonte: BURKOV, Andriy (2019).", out.width="60%"}
-knitr::include_graphics("metodologia.png")
-```
-
-De forma análoga ao caso linear, o SVM não-linear constrói fronteiras de decisão que não são definidas por retas, planos ou hiperplanos, mas sim superfícies capazes de distinguir um grupo de outro com base nas varíaveis descritivas fornecidas ao modelo.
-
-É importante salientar que este algoritmo também é conhecido como Support-Vector Networks, uma vez que permite entender as relações estabelecidas em rede entre as covariáveis do modelo de modo a identificar um comportamento padrão que pode ser utilizado, como neste caso, para classificação da presença de câncer de mama ou não.
-
+Neste experimento, dada a resposta binária, tumor Maligno ou Benigno, câncer ou não câncer de mama, a aplicação da rede neural será aplicada com o intuito de classificação do tipo de tumor e se assemelhará, conforme mencionado, a uma regressão logística. A seguir é apresentada a reprodução do experimento.
 
 ### Resultados
 
@@ -118,7 +93,13 @@ Para reproduzir o experimento, foi utilizado o diagnóstico de câncer de mama p
 * Simetria;
 * Dimensão fractal.
 
-O processo de reprodução do experimento se deu através da aplicação da função `svm()` do pacote e1071 disponível no Software R Studio. Para esta reprodução foi considerada uma aplicação como o treinamento e teste de um modelo SVM, a fim de observar a performance do resultado obtido e comparar estes resultados com o experimento original. Conforme a seção de código abaixo, o conjunto de dados foi separado em um banco de treinamento (75%) e outro de teste (25%), e então aplicou-se a técnica SVM não linear.
+O processo de reprodução do experimento se deu através da aplicação da função `neuralnet()` do pacote neuralnet disponível no Software R Studio. Para esta reprodução foi considerada uma aplicação como o treinamento e teste de uma rede neural, a fim de observar a performance do resultado obtido e comparar estes resultados com o experimento original. Conforme a seção de código abaixo, o conjunto de dados foi separado em um banco de treinamento (75%) e outro de teste (25%) e a rede neural foi ajustada. 
+
+Os hiper parâmetros da rede neural foram ajustados conforme o experimento original, conforme mostra a Figura \ref{fig:experimento}.
+
+```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Hiper parâmetros da Rede Neural. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019).", out.width="60%"}
+knitr::include_graphics("experimento.png")
+```
 
 ```{r, include=FALSE}
 #Leitura dos dados
@@ -132,39 +113,42 @@ names(Cancer) <- c("id", "Diagnóstico","Raio Médio", "Textura Média", "Perím
 
 Cancer$Diagnóstico <- as.factor(Cancer$Diagnóstico)
 
+df <- Cancer %>%
+  rename("diagnostico" = `Diagnóstico`, "raio.medio" = `Raio Médio`, "textura.media" = `Textura Média`, "perimetro.medio" = `Perímetro Médio`, "area.media" = `Área Média`, "suavidade.media" = `Suavidade Média`, "compacidade.media" = `Compacidade Média`, "concavidade.media" = `Concavidade Média`, "pontosconcavos.medio" = `Pontos Côncavos Médio`, "simetria.media" = ` Simetria Média`, "dimensaofractal.media" = `Dimensão fractal Média`, "raio.dp" = `Raio DP`, "textura.dp" = `Textura DP`, "perimetro.dp" = `Perímetro DP`, "area.dp" = `Área DP`, "suavidade.dp" = `Suavidade DP`, "compacidade.dp" = `Compacidade DP`, "concavidade.dp" = `Concavidade DP`, "pontosconcavos.dp" = `Pontos Côncavos DP`, "simetria.dp" = ` Simetria DP`, "dimensaofractal.dp" = `Dimensão fractal DP`, "pior.raio" = `Pior Raio`, "pior.textura" = `Pior Textura`, "pior.perimetro" = `Pior Perímetro`, "pior.area" = `Pior Área`, "pior.suavidade" = `Pior Suavidade`, "pior.compacidade" = `Pior Compacidade`, "pior.concavidade" = `Pior Concavidade`, "piorespontos.concavos" = `Piores Pontos Côncavos`, "pior.simetria" = `Pior Simetria`, "piordimensao.fractal" = `Pior Dimensão fractal`) %>%
+  mutate_if(is.numeric, scale)
+
 ```
 
 ```{r, echo=TRUE}
 set.seed(003) #semente para reprodução nas mesmas configurações
 
 treino_id <- sample(569,569*0.75)
-treino <- Cancer[treino_id,] #Cancer é o nome a base de dados utilizada
+treino <- df[treino_id,] #Cancer é o nome a base de dados utilizada
+treino <- as.data.frame(treino[,-1]) %>%
+  drop_na()
 
-teste <- Cancer[-treino_id,]
+teste <- df[-treino_id,]
+teste <- as.data.frame(teste[,-1]) %>%
+  drop_na()
 
-modelsvm <- svm(Diagnóstico ~.  ,
-                treino %>% dplyr::select(-id),
-                kernel = "radial")
+modelrn <- neuralnet(diagnostico~., data = treino, hidden = c(2,7,4), rep = 50, stepmax = 100000, act.fct = "logistic", algorithm = "backprop", learningrate = 0.001, err.fct = "sse")
 ```
 
 A partir do resultado obtido, foi construída a matriz de confusão, apresentada na Tabela \ref{tab:mc}, usando os dados de teste do modelo.
 
 ```{r}
-previsto <- predict(modelsvm, teste)
+previsto <- neuralnet::compute(modelrn, teste)
+resultado <- data.frame(atual = teste$diagnostico,
+                        predito = previsto$net.result)
 
-confusion <- table(teste$Diagnóstico,previsto)
+roundedresults<-sapply(resultado,round,digits=0)
 
-confusion <- data.frame(confusion) %>% spread(previsto,Freq) %>% mutate(" " = c("Valor Real"), "  " = Var1) %>% dplyr::select(" ", "  ",B,M)
+confusion <- table(roundedresults$atual, roundedresults$predito)
 
-x <- treino[,3:32]
-
-beta <- drop(t(modelsvm$coefs) %*% as.matrix(x[modelsvm$index,]))
-beta0 <- modelsvm$rho
-
-estimados <- c(b = beta0, beta)
-estimados <- data.frame(Estimativas = round(estimados,4))
-
-# kableExtra::kable(estimados, caption = "Parâmetros Estimados do modelo SVM", booktabs = T, longtable = T, align = "rr") %>% kable_styling(latex_options = c("HOLD_position","striped"))
+confusion <- data.frame(confusion) %>% 
+  spread(previsto,Freq) %>%
+  mutate(" " = c("Valor Real"), "  " = Var1) %>%
+  dplyr::select(" ", "  ", B , M)
 
 acuracia <- (92+49)/(92+49+2) #0.986
 
@@ -182,15 +166,13 @@ kable(confusion, caption = "Matriz de Confusão", booktabs = T, align = "rrr")  
 
 ```
 
-A partir da Tabela \ref{tab:mc} é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de 98.6%, a sensibilidade foi de 98% e a especificidade foi igual a 98.9%, resultados estes que refletem o obtido pelo artigo de Silva et.al a partir do uso de SVM como forma de predição de câncer de mama. 
+A partir da Tabela \ref{tab:mc} é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de 98.6%, a sensibilidade foi de 98% e a especificidade foi igual a 98.9%, resultados estes que refletem o obtido pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
 
 Com isto, concluí-se a reprodução do experimento do artigo científico  Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional.
 
 
 ## Referências Bibliográficas
 
-[1] Livro de ML: BURKOV, Andriy. The hundred-page machine learning book. Canada: Andriy Burkov, 2019.
+[1] PAULINELLI, Régis Resende et al. A situação do câncer de mama em Goiás, no Brasil e no mundo: tendências atuais para a incidência e a mortalidade. Revista Brasileira de Saúde Materno Infantil, v. 3, n. 1, p. 17-24, 2003.
 
-[2] PAULINELLI, Régis Resende et al. A situação do câncer de mama em Goiás, no Brasil e no mundo: tendências atuais para a incidência e a mortalidade. Revista Brasileira de Saúde Materno Infantil, v. 3, n. 1, p. 17-24, 2003.
-
-[3] SILVA, Robson Mariano; LEAL, M. R. R.; LIMA, F. M. Predico do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional. TEMA (São Carlos), v. 20, p. 229-240, 2019. Disponível em: <https://www.scielo.br/j/tema/a/yJSLsVLQmfYph8SThYCj8Xh/?lang=pt>.
+[2] SILVA, Robson Mariano; LEAL, M. R. R.; LIMA, F. M. Predico do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional. TEMA (São Carlos), v. 20, p. 229-240, 2019. Disponível em: <https://www.scielo.br/j/tema/a/yJSLsVLQmfYph8SThYCj8Xh/?lang=pt>.
