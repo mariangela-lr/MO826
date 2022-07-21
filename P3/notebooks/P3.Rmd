@@ -173,11 +173,11 @@ confusion <- data.frame(confusion) %>%
   mutate(" " = c("Valor Real"), "  " = Var1) %>%
   dplyr::select(" ", "  ", "B", "M")
 
-acuracia <- (90+50)/(142) #0.986
+acuracia <- round((confusion$B[1]+confusion$M[2])/(confusion$B[1]+confusion$M[2]+confusion$B[2]+confusion$M[1]),4)*100 
 
-sensibilidade <- (50)/(51) #0.980
+sensibilidade <- round((confusion$M[2])/(confusion$B[2]+confusion$M[2]),4)*100
 
-especificicade <- 90/(91) #0.989
+especificidade <- round((confusion$B[1])/(confusion$B[1]+confusion$M[1]),4)*100
 
 ```
 
@@ -191,7 +191,7 @@ kable(confusion, caption = "Matriz de Confusão", booktabs = T, align = "rrr")  
 # max(result_matrix[1,])
 ```
 
-A partir da Tabela \ref{tab:mc} é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de 98.6%, a sensibilidade foi de 98% e a especificidade foi igual a 98.9%. Para além disso, o erro das simulações variou entre 0.0003 e 3.9409. Estes resultados se assemelham aos obtidos pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
+A partir da Tabela 1 é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de `r paste0(acuracia, "%")`, a sensibilidade foi de `r paste0(sensibilidade, "%")` e a especificidade foi igual a `r paste0(especificidade, "%")`. Para além disso, o erro das simulações variou entre 0.0003 e 3.9409. Estes resultados se assemelham aos obtidos pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
 
 Com isto, concluí-se a reprodução do experimento do artigo científico  Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional.
 
