@@ -62,9 +62,23 @@ Dada a importância da tecnologia no processo de diagnóstico de doenças, o obj
 
 As Redes Neurais (RN) são sistemas complexos que funcionam de forma similar ao sistema nervoso humano e são capazes de, através de estruturas de associação (conexões), encontrar padrões de comportamento a partir de uma entrada fornecida.
 
-Uma rede neural artificial funciona como um algoritmo de Machine Learning, isto é, dada uma entrada de dados e a especificação do tipo de resposta desejada, obtem-se um ajuste de sinapses/funções matemáticas e suas respectivas importâncias dentro de um "emaranhado" de conexões até que seja possível caracterizar o fenômeno em análise garantindo que o erro cometido seja mínimo.
+Uma rede neural artificial funciona como uma regressão, isto é, dada uma entrada de dados e a especificação do tipo de resposta desejada, obtém-se um ajuste de sinapses e suas respectivas importâncias dentro de um "emaranhado" de conexões até que seja possível caracterizar o fenômeno em análise, garantindo que o erro cometido seja mínimo. 
 
-O neurônio, ou nó, é a unidade de processamento fundamental de uma rede neural. De forma resumida, durante o processo de aprendizagem a rede neural armazena o conhecimento obtido através dos pesos de cada uma das conexões realizadas, extrai mais informações externas, aprimora suas estimativas da importância das sinapses e com isto, minimiza o erro cometido (no caso de classificação binária, minimiza-se a entropia cruzada - equação \ref{eq:ec}).
+Considere o problema de classificação de K-classes. A construção de uma rede neural se dá em dois estágios, conforme mostrado na Figura \ref{fig:exemplo}, onde a saída k , k = 1,...,K é uma variável codificada como 0 ou 1 para a classe k, e esta é determinada a partir da criação de combinações lineares das entradas, representadas pela camada de entrada e pelas camadas intermediárias, por fim a variável resposta é modelada como uma função das camadas.
+
+```{r exemplo, echo=FALSE, fig.align='center', fig.cap = "Exemplo de uma rede neural. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019)."}
+knitr::include_graphics("exemplo_rn.png")
+```
+
+Para construir as combinações lineares dos dados de entrada estima-se o $Z_m$ (conexões das camadas intermediárias), sendo 
+
+$$
+Z_m=\sigma(\alpha_{0_m}+\alpha_m^TX).
+$$
+
+e $m=1,2,3,...,M$ é o número de camadas ocultas, $\alpha_{0_m}$ e $\alpha_m^T$ são os pesos das sinapses e o termo $\sigma$ representa a função de ativação da rn. Usualmente $\sigma$ é escolhido como sendo a função sigmóide e por este motivo as redes neurais se assemelham a regressão logística.
+
+É importante ressaltar que, no contexto de classificação binária, para construir a rede neural e obter as classes de interesse, em cada interação minimiza-se a entropia cruzada, apresentada na equação \ref{eq:ec}).
 
 $$
 E(W) = -\sum_{i=1}^{N}\sum_{k=1}^{K}y_{ik}log(\hat{y_{ik}})
@@ -72,9 +86,7 @@ $$
 
 onde $i$ é o índice das N observações disponíveis, $k$ a classe da resposta, $y_{ik}$ é o valor real da observação $i$ da classe $k$ e $\hat{y_{ik}}$ é o valor predito da observação $i$ da classe $k$.
 
-De modo geral, para minimizar a entropia utiliza-se o gradiente descendente no algoritmo de backpropagation. Com a função de ativação softmax e combinada com a função de perda de entropia cruzada, a rede neural é configura um modelo de regressão logística simples. 
-
-Neste experimento, dada a resposta binária, tumor Maligno ou Benigno, câncer ou não câncer de mama, a aplicação da rede neural será aplicada com o intuito de classificação do tipo de tumor e se assemelhará, conforme mencionado, a uma regressão logística. A seguir é apresentada a reprodução do experimento.
+Neste experimento a aplicação da rede neural será feita com o intuito de classificação do tipo de tumor (maligno ou benigno). A seguir é apresentada a reprodução do experimento.
 
 ### Resultados
 
@@ -95,9 +107,9 @@ Para reproduzir o experimento, foi utilizado o diagnóstico de câncer de mama p
 
 O processo de reprodução do experimento se deu através da aplicação da função `neuralnet()` do pacote neuralnet disponível no Software R Studio. Para esta reprodução foi considerada uma aplicação como o treinamento e teste de uma rede neural, a fim de observar a performance do resultado obtido e comparar estes resultados com o experimento original. Conforme a seção de código abaixo, o conjunto de dados foi separado em um banco de treinamento (75%) e outro de teste (25%) e a rede neural foi ajustada. 
 
-Os hiper parâmetros da rede neural foram ajustados conforme o experimento original, conforme mostra a Figura \ref{fig:experimento}.
+Os hiperparâmetros da rede neural foram ajustados de forma a estarem o mais próximo possível aos do experimento original, conforme mostra a Figura \ref{fig:experimento}.
 
-```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Hiper parâmetros da Rede Neural. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019).", out.width="60%"}
+```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Hiperparâmetros da Rede Neural do experimento. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019).", out.width="70%"}
 knitr::include_graphics("experimento.png")
 ```
 
@@ -122,8 +134,8 @@ df <- Cancer %>%
 ```{r, echo=TRUE}
 set.seed(003) #semente para reprodução nas mesmas configurações
 
-treino_id <- sample(569,569*0.75)
-treino <- df[treino_id,] #Cancer é o nome a base de dados utilizada
+treino_id <- sample(1:nrow(df), 0.75*nrow(df))
+treino <- df[treino_id,] #df: base de dados normalizada
 treino <- as.data.frame(treino[,-1]) %>%
   drop_na()
 
@@ -131,30 +143,41 @@ teste <- df[-treino_id,]
 teste <- as.data.frame(teste[,-1]) %>%
   drop_na()
 
-modelrn <- neuralnet(diagnostico~., data = treino, hidden = c(2,7,4), rep = 50, stepmax = 100000, act.fct = "logistic", algorithm = "backprop", learningrate = 0.001, err.fct = "sse")
+modelrn <- neuralnet(diagnostico~., data = treino,
+                     hidden = c(2,7,4),
+                     threshold = 0.001,
+                     rep = 50,
+                     act.fct = "logistic",  
+                     err.fct = "sse")
+
 ```
 
 A partir do resultado obtido, foi construída a matriz de confusão, apresentada na Tabela \ref{tab:mc}, usando os dados de teste do modelo.
 
 ```{r}
-previsto <- neuralnet::compute(modelrn, teste)
+result_matrix <- data.frame(modelrn$result.matrix)
+
+previsto <- neuralnet::compute(modelrn, teste, 1)
 resultado <- data.frame(atual = teste$diagnostico,
                         predito = previsto$net.result)
 
-roundedresults<-sapply(resultado,round,digits=0)
+roundedresults <- resultado %>%
+  mutate_if(is.numeric, round) %>%
+  select(-predito.1)
 
 confusion <- table(roundedresults$atual, roundedresults$predito)
 
 confusion <- data.frame(confusion) %>% 
-  spread(previsto,Freq) %>%
+  mutate(Var2 = if_else(Var2 == 0, "B", "M")) %>%
+  spread(Var2,Freq) %>%
   mutate(" " = c("Valor Real"), "  " = Var1) %>%
-  dplyr::select(" ", "  ", B , M)
+  dplyr::select(" ", "  ", "B", "M")
 
-acuracia <- (92+49)/(92+49+2) #0.986
+acuracia <- (90+50)/(142) #0.986
 
-sensibilidade <- (49)/(49+1) #0.980
+sensibilidade <- (50)/(51) #0.980
 
-especificicade <- 92/(92+1) #0.989
+especificicade <- 90/(91) #0.989
 
 ```
 
@@ -164,9 +187,11 @@ kable(confusion, caption = "Matriz de Confusão", booktabs = T, align = "rrr")  
   kable_styling(position="center", latex_options = c("HOLD_position", "striped")) %>%
   add_header_above(c(" " = 2,"Valor Predito" = 2))
 
+# min(result_matrix[1,])
+# max(result_matrix[1,])
 ```
 
-A partir da Tabela \ref{tab:mc} é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de 98.6%, a sensibilidade foi de 98% e a especificidade foi igual a 98.9%, resultados estes que refletem o obtido pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
+A partir da Tabela \ref{tab:mc} é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de 98.6%, a sensibilidade foi de 98% e a especificidade foi igual a 98.9%. Para além disso, o erro das simulações variou entre 0.0003 e 3.9409. Estes resultados se assemelham aos obtidos pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
 
 Com isto, concluí-se a reprodução do experimento do artigo científico  Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional.
 
