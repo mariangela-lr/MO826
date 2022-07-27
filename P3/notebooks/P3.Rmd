@@ -7,7 +7,7 @@ header-includes:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 ```
 
 ```{r, include=FALSE}
@@ -16,9 +16,7 @@ library(reshape2)
 library(corrplot)
 library(polycor)
 library(kableExtra)
-library(e1071)
-library(caret)
-library(neuralnet)
+library(igraph)
 ```
 
 ## Apresentação
@@ -28,176 +26,121 @@ O presente projeto foi originado no contexto das atividades da disciplina de pó
 
 ## Referência do Artigo
 
-SILVA, Robson Mariano; LEAL, M. R. R.; LIMA, F. M. Predico do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional. TEMA (São Carlos), v. 20, p. 229-240, 2019. Disponível em: <https://www.scielo.br/j/tema/a/yJSLsVLQmfYph8SThYCj8Xh/?lang=pt>.
-
+Alexander-Bloch Aaron F., Raznahan Armin, Shinohara Russell T., Mathias Samuel R., Bathulapalli Harini, Bhalla Ish P., Goulet Joseph L., Satterthwaite Theodore D., Bassett Danielle S., Glahn David C. e Brandt Cynthia A., 2020. A arquitetura das redes de co-morbidade das condições de saúde física e mental dos veteranos militares. Proc. R. Soc. A. 4762019079020190790. Disponível em: <http://doi.org/10.1098/rspa.2019.0790>.
 
 ## Contextualização da Proposta
 
-O objetivo deste estudo foi reproduzir o experimento desenvolvido no artigo científico, Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019). 
+O objetivo deste estudo foi reproduzir o experimento desenvolvido no artigo científico, "A arquitetura das redes de co-morbidade das condições de saúde física e mental dos veteranos militares"
 
 
 ## Ferramentas
 
 - Software R Studio versão 4.1.2
+- Pacote WGCNA.
 
 
 ## Resumo
 
-O artigo científico no qual este projeto foi baseado trata sobre a aplicação de técnicas de inteligência computacional para a predição do câncer de mama. 
-
-O câncer é uma doença que vêm se tornando uma das principais causas de morte no mundo, e isso se deve, em partes, ao fato de que a forma como a sociedade tem escolhido viver não inclui um conjunto de hábitos saudáveis - que são fatores fundamentais na prevenção ao câncer, conforme aponta Paulinelli et.al (2003).
-
-Essa doença tão temida pela população pode ser desenvolvida nas mais diferentes áreas do organismo humano. No cenário geral, o que tem sido observado é que 30% dos casos de tumores, entre as mulheres, são malignos e para além disso, a doença tem sido uma das maiores causas de morte nesse grupo, com isso questões estão surgindo com respeito ao que pode ser feito para evitar que a taxa de mortes devido ao câncer de mama continue crescendo.
-
-Existe um conjunto de fatores que dão indícios sobre o desenvolvimento do câncer de mama e a partir da identificação destes fatores inicia-se um protocolo de investigação para a detecção da doença; neste protocolo, o principal exame para o diagnóstico é a mamografia. De acordo com o Instituto Nacional de Câncer, o exame de mamografia é o único que tem se mostrado eficaz na detecção do câncer de mama e, com isso, permite que sejam aplicados tratamentos de modo a reduzir as chances de mortalidade da doença. Nesse sentido, torna-se imprescindível a realização deste exame por mulheres que apresentam alguns dos sintomas, ou por mulheres de idade mais avançada, uma vez que estudos indicam que a mamografia é mais assertiva em mulheres cuja idade esteja entre 50 e 65 anos, e o diagnóstico precoce reduz a mortalidade em 20%
-
-A mamografia é uma importante ferramenta para realizar o diagnóstico, neste exame é feito um raio-X da mama e a partir deste, busca-se por sinais da presença do câncer. No Brasil, o Sistema Único de Saúde (SUS) garante a acessibilidade ao exame para todas as mulheres desde que solicitado por um médico, o que é refletido em uma identificação prévia e redução na taxa de mortalidade. Entretanto ressalta-se que a acurácia garantida pelo exame não é de 100%, podendo gerar tanto resultados falsos-positivos quanto falsos-negativos. Além disso, esse exame requer uma habilidade extrema do profissional que o analisa, e falhar no diagnóstico é extremamente preocupante, dado que o câncer de mama é uma doença muito grave. Nesse sentido, é importante e necessário buscar meios que auxiliem o processo de diagnóstico e o tornem mais eficiente, diminuindo os erros de leitura de exames e diagnósticos incorretos. 
-
-Nesse contexto, a tecnologia tem se mostrado cada vez mais importante, possibilitando o diagnóstico e tratamento precoce do paciente. Sendo assim, a utilização de algoritmos de aprendizado de máquina podem potencializar novos desenvolvimentos e contribuir fortemente como aliados da medicina.
-
 
 ## Método e Resultados
 
-Dada a importância da tecnologia no processo de diagnóstico de doenças, o objetivo do presente trabalho é a reprodução da aplicação do algoritmo de Redes Neurais para detecção de câncer de mama a partir do conjunto de dados Breast Cancer Wisconsin (Diagnostic) Data Set \footnote{https://www.kaggle.com/uciml/breast-cancer-wisconsin-data}, disponível em domínio público. 
+### Redes Complexas
 
-As Redes Neurais (RN) são sistemas complexos que funcionam de forma similar ao sistema nervoso humano e são capazes de, através de estruturas de associação (conexões), encontrar padrões de comportamento a partir de uma entrada fornecida.
+A ciência de redes, têm se mostrado objeto de estudo de extremo interesse. Isto se deve ao fato de que o mundo é composto, em sua essência, por inúmeros sistemas de redes, sejam eles no âmbito social (vínculos sociais), tecnológico (redes de celulares ou internet), biológico (como o organismo reage a um determinado estímulo), ou em qualquer outro setor que se possa pensar.
 
-Uma rede neural artificial funciona como uma regressão, isto é, dada uma entrada de dados e a especificação do tipo de resposta desejada, obtém-se um ajuste de sinapses e suas respectivas importâncias dentro de um "emaranhado" de conexões até que seja possível caracterizar o fenômeno em análise, garantindo que o erro cometido seja mínimo. 
+Redes complexas, independentemente da forma/ambiente em que se encontram, são estruturas que se comportam como nós conectados por links, e estes últimos representam a forma como os nós interagem entre si. O interessante é que independentemente do contexto em que se observa uma rede complexa, o comportamento dessa estrutura é o mesmo, ou seja, é possível identificarmos um conjunto de regras que regem seu funcionamento. A Figura \ref{fig:exemplo_rede} apresenta um exemplo de redes complexas, na qual se pode observar a rede de amigos numa escola dos Estados Unidos. 
 
-Considere o problema de classificação de K-classes. A construção de uma rede neural se dá em dois estágios, conforme mostrado na Figura \ref{fig:exemplo}, onde a saída k , k = 1,...,K é uma variável codificada como 0 ou 1 para a classe k, e esta é determinada a partir da criação de combinações lineares das entradas, representadas pela camada de entrada e pelas camadas intermediárias, por fim a variável resposta é modelada como uma função das camadas.
+```{r exemplo_rede, echo=FALSE, out.width="70%", fig.align='center', fig.cap = "Exemplo de rede complexa: rede de amigos em uma escola dos Estados Unidos. FONTE: Mendes (2005). Disponível em https://www.spf.pt/magazines/GFIS/78/article/503/pdf."}
 
-```{r exemplo, echo=FALSE, fig.align='center', fig.cap = "Exemplo de uma rede neural. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019)."}
-knitr::include_graphics("exemplo_rn.png")
+knitr::include_graphics("exemplo_rc.png")
 ```
 
-Para construir as combinações lineares dos dados de entrada estima-se o $Z_m$ (conexões das camadas intermediárias), sendo 
+Em decorrência das regras que norteiam o funcionamento de uma rede é possível compreender o funcionamento das mesmas e modelar esse mecanismo comum a partir de gráficos, uma abstração matemática que permite uma melhor compreensão do funcionamento de uma rede complexa.
 
-$$
-Z_m=\sigma(\alpha_{0_m}+\alpha_m^TX).
-$$
+Para compreendermos o funcionamento de uma rede complexa é necessário representá-la matematicamente e, posterior a representação matemática podemos abstrair a informação por meio de um gráfico. Conforme explica Angélica da Mata (2020), uma rede pode ser representada através de uma matriz de adjacência. Em uma rede cujas conexões possuem a mesma importância, isto é, o mesmo peso, a matriz de adjacência é então representada por
 
-e $m=1,2,3,...,M$ é o número de camadas ocultas, $\alpha_{0_m}$ e $\alpha_m^T$ são os pesos das sinapses e o termo $\sigma$ representa a função de ativação da rn. Usualmente $\sigma$ é escolhido como sendo a função sigmóide e por este motivo as redes neurais se assemelham a regressão logística.
+\begin{center}
 
-É importante ressaltar que, no contexto de classificação binária, para construir a rede neural e obter as classes de interesse, em cada interação minimiza-se a entropia cruzada, apresentada na equação \ref{eq:ec}).
+$Um_{ij}$ = 1, se os vértices $i$ e $j$ estão conectados e 0 caso contrário.
 
-$$
-E(W) = -\sum_{i=1}^{N}\sum_{k=1}^{K}y_{ik}log(\hat{y_{ik}})
-$$
+\end{center}
 
-onde $i$ é o índice das N observações disponíveis, $k$ a classe da resposta, $y_{ik}$ é o valor real da observação $i$ da classe $k$ e $\hat{y_{ik}}$ é o valor predito da observação $i$ da classe $k$.
+Se a matriz $Um_{ij}$ é simétrica, então todos os nós da rede estão conectados e configura-se um gráfico sem peso e não direcionado. Enquanto que para redes em que pelo menos um par de nós não está ligado, a matriz de adjacência não é simétrica e a rede é dita direcionada. Nos casos em que as conexões têm pesos diferentes a matriz de adjacência assumirá o valor $w_{ij}$, onde $0\leq w_{ij}\leq 1$ é o peso da referida conexão entre os nós $i$ e $j$.
 
-Neste experimento a aplicação da rede neural será feita com o intuito de classificação do tipo de tumor (maligno ou benigno). A seguir é apresentada a reprodução do experimento.
+A partir da matriz de adjacência é possível estabelecer o número de vizinhos mais próximos de cada um dos vértices da rede e a partir disso determinar, por exemplo, qual o nível de centralidade de cada um dos nós, qual a distância entre os nós e quais são os caminhos que os conectam entre outras características. A determinação dos pontos de centralidade é uma qualidade importante no estudo de redes porque através dela podemos, por exemplo, determinar onde uma epidemia teve início, qual a região em que a contaminação por um vírus ocorre de maneira mais rápida, quais poderiam ser as ações tomadas com base na distância entre os pontos de contaminação e etc.
+
+Outras duas características importantes das redes é a formação de subgrafos que indicam comportamentos de agrupamento dentro de uma rede e nos permite entender quais as razões pelas quais um grupo de pessoas interage de forma mais intrínseca do que com outros grupos e a influência com que os nós têm no comportamento da rede como um todo.
+
+Em redes menores é simples determinarmos as conexões e o comportamento do sistema como um todo, entretanto, à medida que o número de conexões aumenta torna-se necessário usar ferramentas estatísticas que nos permitam estimar o grau das conexões e o funcionamento da rede em termos da distribuição desses graus. Na seção seguinte mostramos a aplicação da ciência de redes através da reprodução do estudo desenvolvido no artigo de Alexander-Bloch Aaron F et.al (2020). 
+
+No artigo de referência deste projeto, 
 
 ### Resultados
 
-Para reproduzir o experimento, foi utilizado o diagnóstico de câncer de mama para 569 indivíduos diferentes, sendo esse diagnóstico benigno (B), para o qual foi observado um total de 357 resultados, e maligno (M), com um total de 212 observações. O conjunto de dados utilizado, foi o mesmo usado no artigo de Silva et.al, e estes trazem informação com respeito a variáveis observadas a partir da leitura de uma imagem digitalizada do aspirado por agulha fina (FNA) da massa mamária de cada indivíduo, e essas variáveis são:
-
-* Identificador do indivíduo;
-* Diagnóstico;
-* Raio (média das distâncias do centro aos pontos no perímetro);
-* Textura (desvio padrão dos valores da escala de cinza);
-* Perímetro;
-* Área;
-* Suavidade (variação local nos comprimentos dos raios);
-* Compacidade;
-* Concavidade (severidade das porções côncavas do contorno);
-* Pontos côncavos (número de porções côncavas do contorno);
-* Simetria;
-* Dimensão fractal.
-
-O processo de reprodução do experimento se deu através da aplicação da função `neuralnet()` do pacote neuralnet disponível no Software R Studio. Para esta reprodução foi considerada uma aplicação como o treinamento e teste de uma rede neural, a fim de observar a performance do resultado obtido e comparar estes resultados com o experimento original. Conforme a seção de código abaixo, o conjunto de dados foi separado em um banco de treinamento (75%) e outro de teste (25%) e a rede neural foi ajustada. 
-
-Os hiperparâmetros da rede neural foram ajustados de forma a estarem o mais próximo possível aos do experimento original, conforme mostra a Figura \ref{fig:experimento}.
-
-```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Hiperparâmetros da Rede Neural do experimento. Fonte: Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional de Silva et.al (2019).", out.width="70%"}
-knitr::include_graphics("experimento.png")
-```
-
-```{r, include=FALSE}
-#Leitura dos dados
-path = "C:/Users/maria/OneDrive/Documentos/Mariangela/MO826/MO826_P3"
-
-Cancer <- read_csv(file.path(path,"data.csv"))
-
-Cancer <- Cancer[,1:32]
-
-names(Cancer) <- c("id", "Diagnóstico","Raio Médio", "Textura Média", "Perímetro Médio", "Área Média", "Suavidade Média", "Compacidade Média", "Concavidade Média", "Pontos Côncavos Médio", " Simetria Média", "Dimensão fractal Média","Raio DP", "Textura DP", "Perímetro DP", "Área DP", "Suavidade DP", "Compacidade DP", "Concavidade DP", "Pontos Côncavos DP", " Simetria DP", "Dimensão fractal DP","Pior Raio", "Pior Textura", "Pior Perímetro", "Pior Área", "Pior Suavidade", "Pior Compacidade", "Pior Concavidade", "Piores Pontos Côncavos", "Pior Simetria", "Pior Dimensão fractal")
-
-Cancer$Diagnóstico <- as.factor(Cancer$Diagnóstico)
-
-df <- Cancer %>%
-  rename("diagnostico" = `Diagnóstico`, "raio.medio" = `Raio Médio`, "textura.media" = `Textura Média`, "perimetro.medio" = `Perímetro Médio`, "area.media" = `Área Média`, "suavidade.media" = `Suavidade Média`, "compacidade.media" = `Compacidade Média`, "concavidade.media" = `Concavidade Média`, "pontosconcavos.medio" = `Pontos Côncavos Médio`, "simetria.media" = ` Simetria Média`, "dimensaofractal.media" = `Dimensão fractal Média`, "raio.dp" = `Raio DP`, "textura.dp" = `Textura DP`, "perimetro.dp" = `Perímetro DP`, "area.dp" = `Área DP`, "suavidade.dp" = `Suavidade DP`, "compacidade.dp" = `Compacidade DP`, "concavidade.dp" = `Concavidade DP`, "pontosconcavos.dp" = `Pontos Côncavos DP`, "simetria.dp" = ` Simetria DP`, "dimensaofractal.dp" = `Dimensão fractal DP`, "pior.raio" = `Pior Raio`, "pior.textura" = `Pior Textura`, "pior.perimetro" = `Pior Perímetro`, "pior.area" = `Pior Área`, "pior.suavidade" = `Pior Suavidade`, "pior.compacidade" = `Pior Compacidade`, "pior.concavidade" = `Pior Concavidade`, "piorespontos.concavos" = `Piores Pontos Côncavos`, "pior.simetria" = `Pior Simetria`, "piordimensao.fractal" = `Pior Dimensão fractal`) %>%
-  mutate_if(is.numeric, scale)
-
-```
-
-```{r, echo=TRUE}
-set.seed(003) #semente para reprodução nas mesmas configurações
-
-treino_id <- sample(1:nrow(df), 0.75*nrow(df))
-treino <- df[treino_id,] #df: base de dados normalizada
-treino <- as.data.frame(treino[,-1]) %>%
-  drop_na()
-
-teste <- df[-treino_id,]
-teste <- as.data.frame(teste[,-1]) %>%
-  drop_na()
-
-modelrn <- neuralnet(diagnostico~., data = treino,
-                     hidden = c(2,7,4),
-                     threshold = 0.001,
-                     rep = 50,
-                     act.fct = "logistic",  
-                     err.fct = "sse")
-
-```
-
-A partir do resultado obtido, foi construída a matriz de confusão, apresentada na Tabela \ref{tab:mc}, usando os dados de teste do modelo.
+A rede encontrada a partir da reprodução do experimento, Figura \ref{fig:experimento}, apesar de possuir um formato diferente, preserva as características da rede apresentada no artigo de referência \ref{fig:original}. Podemos observar, por exemplo, que os nós Cong, Def, Conn, Back, e assim por diante, se agruparam em uma comunidade, e da mesma forma as demais comunidades se formaram.
 
 ```{r}
-result_matrix <- data.frame(modelrn$result.matrix)
+set.seed(001)
+data <- as.matrix(read.csv("https://raw.githubusercontent.com/aaronab/comorbidity_networks/master/comorbidity_odds_matrix.csv", row.names = 1))
 
-previsto <- neuralnet::compute(modelrn, teste, 1)
-resultado <- data.frame(atual = teste$diagnostico,
-                        predito = previsto$net.result)
+shortnamevec <- c("Her","Def","Adj","Ane","Ast","ADHD","Bac","Bil","Bur",
+                  "NIn","CVD","COPD","Ulc","Coag","Coma","CIj",
+                  "Dem","Dev","Art","Mou","Hea","Uri","Vei","WBC",
+                  "Lip","Jaw","Ch","Ear","Ep","Eye","Ele",
+                  "Fr","GIH","Gou","HA","NSC","HTN","Imm","Imp",
+                  "ArI","IIn","BIj","TJ","Liv","LGI","Myc",
+                  "NTJ","Gas","Nut","Wou","Ost","Bone","Conn","End",
+                  "GIO","HeO","InO","SInf","IjO","LRO","NSO",
+                  "NuO","SkO","URO","Pan","Par","PFr","Per","Ple",
+                  "Poi","RF","RIn","SIn","Spi","Back","Spr","Sui",
+                  "SuIj","Lup","Thy","UGI","Vir","Alc","Drg","Sch","MDD",
+                  "BPD","PTSD","DepO","AnxO","GAD","DM","Neo","Cong","Gen")
 
-roundedresults <- resultado %>%
-  mutate_if(is.numeric, round) %>%
-  select(-predito.1)
+whichpsych <- c(3,6,17, 18, 27, 39, 68 ,77 ,83 ,84 ,85, 86, 87,
+                88, 89, 90, 91)
 
-confusion <- table(roundedresults$atual, roundedresults$predito)
+rownames(data) <- colnames(data) <- shortnamevec
 
-confusion <- data.frame(confusion) %>% 
-  mutate(Var2 = if_else(Var2 == 0, "B", "M")) %>%
-  spread(Var2,Freq) %>%
-  mutate(" " = c("Valor Real"), "  " = Var1) %>%
-  dplyr::select(" ", "  ", "B", "M")
+G.oddsmat <- graph_from_adjacency_matrix(t(data), 
+                                         mode = 'directed', 
+                                         diag = F, weighted = T)
 
-acuracia <- round((confusion$B[1]+confusion$M[2])/(confusion$B[1]+confusion$M[2]+confusion$B[2]+confusion$M[1]),4)*100 
+namevec <- row.names(data)
 
-sensibilidade <- round((confusion$M[2])/(confusion$B[2]+confusion$M[2]),4)*100
+V(G.oddsmat)$color <- 'Black'
 
-especificidade <- round((confusion$B[1])/(confusion$B[1]+confusion$M[1]),4)*100
+V(G.oddsmat)$color[V(G.oddsmat)$name %in% namevec[whichpsych]] <- 'tomato'
 
+G.oddsmat.2 <- delete_edges(G.oddsmat, E(G.oddsmat)[weight<1])
+
+G.oddsmat.3 <- decompose(G.oddsmat.2, min.vertices = 3)[[1]]
+
+communities <- cluster_fluid_communities(G.oddsmat.3, no.of.communities = 7)
+
+colrs <- adjustcolor( c("#FFF000", "#33FF00", "#0033FF", "#CC33CC", 
+                        "#FF3300", "#CC0099", "#669999"), alpha=.6)
+
+# plot(G.oddsmat.3, vertex.size=3, edge.arrow.size = 0.1, 
+#      vertex.label.cex=.7,
+#      edge.width = E(G.oddsmat.3)$weight/10,
+#      vertex.color=colrs[communities$membership])
 ```
 
-```{r mc}
-kable(confusion, caption = "Matriz de Confusão", booktabs = T, align = "rrr")  %>% 
-  collapse_rows(c(1,2),latex_hline = "major") %>%
-  kable_styling(position="center", latex_options = c("HOLD_position", "striped")) %>%
-  add_header_above(c(" " = 2,"Valor Predito" = 2))
-
-# min(result_matrix[1,])
-# max(result_matrix[1,])
+```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Rede gerada a partir da reprodução do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
+plot(communities, G.oddsmat.3, vertex.label.cex = 0.5, 
+     vertex.label.color = "black", edge.arrow.size = 0.2)
 ```
 
-A partir da Tabela 1 é possível extrair métricas do modelo ajustado e observa-se que a acurácia obtida foi de `r paste0(acuracia, "%")`, a sensibilidade foi de `r paste0(sensibilidade, "%")` e a especificidade foi igual a `r paste0(especificidade, "%")`. Para além disso, o erro das simulações variou entre 0.0003 e 3.9409. Estes resultados se assemelham aos obtidos pelo artigo de Silva et.al a partir do uso de Redes Neurais como método para predição de câncer de mama. 
+```{r original, echo=FALSE, out.width="60%", fig.align='center', fig.cap = "Rede de referência do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
+knitr::include_graphics("original.png")
+```
 
-Com isto, concluí-se a reprodução do experimento do artigo científico  Predição do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional.
-
+\newpage
 
 ## Referências Bibliográficas
 
-[1] PAULINELLI, Régis Resende et al. A situação do câncer de mama em Goiás, no Brasil e no mundo: tendências atuais para a incidência e a mortalidade. Revista Brasileira de Saúde Materno Infantil, v. 3, n. 1, p. 17-24, 2003.
+[1] Alexander-Bloch Aaron F., Raznahan Armin, Shinohara Russell T., Mathias Samuel R., Bathulapalli Harini, Bhalla Ish P., Goulet Joseph L., Satterthwaite Theodore D., Bassett Danielle S., Glahn David C. e Brandt Cynthia A., 2020. A arquitetura das redes de co-morbidade das condições de saúde física e mental dos veteranos militares. Proc. R. Soc. A. 4762019079020190790. Disponível em: <http://doi.org/10.1098/rspa.2019.0790>.
 
-[2] SILVA, Robson Mariano; LEAL, M. R. R.; LIMA, F. M. Predico do Câncer de Mama com Aplicação de Modelos de Inteligência Computacional. TEMA (São Carlos), v. 20, p. 229-240, 2019. Disponível em: <https://www.scielo.br/j/tema/a/yJSLsVLQmfYph8SThYCj8Xh/?lang=pt>.
+[2] Mata, A.S.D. Complex Networks: uma mini-revisão. Braz J Phys 50, 658-672 (2020). Disponível em: <https://doi.org/10.1007/s13538-020-00772-9>.
+
+
