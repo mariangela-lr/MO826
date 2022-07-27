@@ -12,10 +12,6 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
 
 ```{r, include=FALSE}
 library(tidyverse)
-library(reshape2)
-library(corrplot)
-library(polycor)
-library(kableExtra)
 library(igraph)
 ```
 
@@ -30,21 +26,18 @@ Alexander-Bloch Aaron F., Raznahan Armin, Shinohara Russell T., Mathias Samuel R
 
 ## Contextualização da Proposta
 
-O objetivo deste estudo foi reproduzir o experimento desenvolvido no artigo científico, "A arquitetura das redes de co-morbidade das condições de saúde física e mental dos veteranos militares"
+O objetivo deste estudo foi reproduzir o experimento desenvolvido no artigo científico, "The architecture of co-morbidity networks of physical and mental health conditions in military veterans" de Aaron F. et.al (2020).
 
 
 ## Ferramentas
 
 - Software R Studio versão 4.1.2
-- Pacote WGCNA.
-
 
 ## Resumo
 
+O artigo de Aaron F. et.al (2020) tem como objetivo encontrar uma arquitetura de redes que estabelece conexões entre as chances de doenças físicas aumentarem em detrimento da presença de doenças psiquiátricas e vice-versa. Para isso, os autores estimam as chances através de modelos de regressão logística e os parâmetros filtrados desses modelos servem como base para a matriz de adjacência da rede, permitindo assim a identificação de padrões de comportamento da associação entre condições médicas e psiquiátricas. Neste projeto, usamos o pacote `igraph` para reproduzir os resultados obtidos no artigo.
 
 ## Método e Resultados
-
-### Redes Complexas
 
 A ciência de redes, têm se mostrado objeto de estudo de extremo interesse. Isto se deve ao fato de que o mundo é composto, em sua essência, por inúmeros sistemas de redes, sejam eles no âmbito social (vínculos sociais), tecnológico (redes de celulares ou internet), biológico (como o organismo reage a um determinado estímulo), ou em qualquer outro setor que se possa pensar.
 
@@ -73,11 +66,25 @@ Outras duas características importantes das redes é a formação de subgrafos 
 
 Em redes menores é simples determinarmos as conexões e o comportamento do sistema como um todo, entretanto, à medida que o número de conexões aumenta torna-se necessário usar ferramentas estatísticas que nos permitam estimar o grau das conexões e o funcionamento da rede em termos da distribuição desses graus. Na seção seguinte mostramos a aplicação da ciência de redes através da reprodução do estudo desenvolvido no artigo de Alexander-Bloch Aaron F et.al (2020). 
 
-No artigo de referência deste projeto, 
+O estudo de relações entre condições psiquiátricas e médicas é de extrema importância, haja vista que em diversos casos de comorbidade observam-se características patológicas, indicando associação entre esses dois campos da saúde humana. Apesar de evidenciadas tais relações, a compreensão de como o fenômeno de co-ocorrência de casos clínicos e doenças psiquiátricas é um problema difícil de ser tratado através dos modelos menos complexos de diagnóstico. O uso de redes complexas neste contexto é, portanto, uma estratégia que possibilita melhorar como esses movimentos de ocorrência de doenças que afetam a saúde física e mental da população de forma simultânea. 
+
+No artigo de referência deste projeto os autores se propuseram a analisar estruturas de redes complexas no que diz respeito ao desenvolvimento de doenças físicas e mentais que afetam ex-militares dos Estados Unidos.
+
+Para o desenvolvimento do estudo, Aaron F. et.al tomaram uma amostra de veteranos do exército dos EUA com características específicas e a partir disto selecionaram, através dos registros clínicos destes veteranos, condições médicas e psiquiátricas de interesse. Feito isso, os autores buscaram determinar se a chance de diagnóstico de uma doença é afetada pelo diagnóstico de uma condição psiquiátrica e vice-versa. Para isso determinar essa relação de associação entre as diferentes condições foi usado um modelo de regressão logística e a partir dele as chances foram obtidas. 
+
+Após esta primeira etapa de modelagem e entendimento dos dados o estudo foi direcionado a modelagem de redes complexas de tal modo que fosse possível compreender, dentre as condições clínicas que apresentaram associação estatisticamente significativa com condições psiquiátricas.
+
+Os autores disponibilizaram o conjunto de dados das chances de diagnóstico em decorrência de condições médicas e psiquiátricas e que foi utilizado para construir a rede apresentada por eles, e a partir desse conjunto de dados construímos uma rede que é apresentada na seção seguinte.
 
 ### Resultados
 
-A rede encontrada a partir da reprodução do experimento, Figura \ref{fig:experimento}, apesar de possuir um formato diferente, preserva as características da rede apresentada no artigo de referência \ref{fig:original}. Podemos observar, por exemplo, que os nós Cong, Def, Conn, Back, e assim por diante, se agruparam em uma comunidade, e da mesma forma as demais comunidades se formaram.
+Para construir a rede do artigo de referência, os autores levaram em consideração apenas os coeficientes do conjuntos de modelos de regressão logística que foram estatisticamente significativos e que apresentaram taxa de falsos positivos inferior à 5%. Além disso, eles consideraram ainda apenas os coeficientes positivos, ou seja, que indicam alteração positiva, isto é, aumento da chance de uma doença física $x$ em decorrência da presença de uma doença psiquiátrica $y$.
+
+Para reproduzir o experimento realizado foi usado o conjunto de dados disponibilizado e a partir do pacote `igraph` disponível no R Studio aplicamos as funções deste pacote, como por exemplo `graph_from_adjacency_matrix()`, para obter a matriz de adjacência da rede. As Figuras \ref{fig:experimento} e \ref{fig:original} apresentam, respectivamente, os resultados da rede reproduzida e a rede original apresentada no artigo de referência.
+
+Para econtrar as comunidades destacadas pelo artigo, usamos a função `cluster_fluid_communities()` e determinamos o número de comunidades igual a 7, de modo que pudéssemos tentar reconstruir a rede original.
+
+\newpage
 
 ```{r}
 set.seed(001)
@@ -120,20 +127,27 @@ communities <- cluster_fluid_communities(G.oddsmat.3, no.of.communities = 7)
 colrs <- adjustcolor( c("#FFF000", "#33FF00", "#0033FF", "#CC33CC", 
                         "#FF3300", "#CC0099", "#669999"), alpha=.6)
 
-# plot(G.oddsmat.3, vertex.size=3, edge.arrow.size = 0.1, 
-#      vertex.label.cex=.7,
-#      edge.width = E(G.oddsmat.3)$weight/10,
-#      vertex.color=colrs[communities$membership])
+df <- data %>%
+  as.data.frame() 
+
+df %>%
+  gather(doencas, odds, c(colnames(df))) %>%
+  write.csv("C:/Users/maria/Downloads/df.csv")
+
 ```
 
-```{r experimento, echo=FALSE, fig.align='center', fig.cap = "Rede gerada a partir da reprodução do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
+```{r experimento, echo=FALSE, out.width="75%", fig.align='center', fig.cap = "Rede gerada a partir da reprodução do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
 plot(communities, G.oddsmat.3, vertex.label.cex = 0.5, 
      vertex.label.color = "black", edge.arrow.size = 0.2)
 ```
 
-```{r original, echo=FALSE, out.width="60%", fig.align='center', fig.cap = "Rede de referência do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
+```{r original, echo=FALSE, out.width="40%", fig.align='center', fig.cap = "Rede de referência do experimento do artigo de Alexander-Bloch Aaron F et.al (2020)."}
 knitr::include_graphics("original.png")
 ```
+
+Notamos que a rede encontrada a partir da reprodução do experimento, Figura \ref{fig:experimento}, apesar de possuir um formato diferente, preserva as características da rede apresentada no artigo de referência \ref{fig:original}. Podemos observar, por exemplo, que os nós Cong, Def, Conn, Back, e assim por diante, se agruparam em uma mesma comunidade, e da mesma forma as demais comunidades se formaram. 
+
+Concluímos portanto a reprodução do experimento do artigo selecionado e também, a partir do estudo do mesmo, a relevância do uso de redes complexas como forma de diagnosticar padrões de associação entre doenças psiquiátricas e clínicas que, comumente, passam desapercebidas e podem afetar desde as políticas de saúde até formas de tratamento de pacientes e prevenção de doenças.
 
 \newpage
 
