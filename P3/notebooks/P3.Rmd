@@ -66,7 +66,7 @@ Outras duas características importantes das redes é a formação de subgrafos 
 
 Em redes menores é simples determinarmos as conexões e o comportamento do sistema como um todo, entretanto, à medida que o número de conexões aumenta torna-se necessário usar ferramentas estatísticas que nos permitam estimar o grau das conexões e o funcionamento da rede em termos da distribuição desses graus. Na seção seguinte mostramos a aplicação da ciência de redes através da reprodução do estudo desenvolvido no artigo de Alexander-Bloch Aaron F et.al (2020). 
 
-O estudo de relações entre condições psiquiátricas e médicas é de extrema importância, haja vista que em diversos casos de comorbidade observam-se características patológicas, indicando associação entre esses dois campos da saúde humana. Apesar de evidenciadas tais relações, a compreensão de como o fenômeno de co-ocorrência de casos clínicos e doenças psiquiátricas é um problema difícil de ser tratado através dos modelos menos complexos de diagnóstico. O uso de redes complexas neste contexto é, portanto, uma estratégia que possibilita melhorar como esses movimentos de ocorrência de doenças que afetam a saúde física e mental da população de forma simultânea. 
+O estudo de relações entre condições psiquiátricas e médicas é de extrema importância, haja vista que em diversos casos de observam-se características que indicam a presença de associação entre esses dois campos da saúde humana. Apesar de evidenciadas tais relações, a compreensão de como o fenômeno de co-ocorrência de casos clínicos e doenças psiquiátricas é um problema difícil de ser tratado através dos modelos mais comuns de diagnóstico. O uso de redes complexas neste contexto é, portanto, uma estratégia que possibilita melhorar como esses movimentos de ocorrência de doenças que afetam a saúde física e mental da população de forma simultânea. 
 
 No artigo de referência deste projeto os autores se propuseram a analisar estruturas de redes complexas no que diz respeito ao desenvolvimento de doenças físicas e mentais que afetam ex-militares dos Estados Unidos.
 
@@ -75,8 +75,6 @@ Para o desenvolvimento do estudo, Aaron F. et.al tomaram uma amostra de veterano
 Após esta primeira etapa de modelagem e entendimento dos dados o estudo foi direcionado a modelagem de redes complexas de tal modo que fosse possível compreender, dentre as condições clínicas que apresentaram associação estatisticamente significativa com condições psiquiátricas.
 
 Os autores disponibilizaram o conjunto de dados das chances de diagnóstico em decorrência de condições médicas e psiquiátricas e que foi utilizado para construir a rede apresentada por eles, e a partir desse conjunto de dados construímos uma rede que é apresentada na seção seguinte.
-
-### Resultados
 
 Para construir a rede do artigo de referência, os autores levaram em consideração apenas os coeficientes do conjuntos de modelos de regressão logística que foram estatisticamente significativos e que apresentaram taxa de falsos positivos inferior à 5%. Além disso, eles consideraram ainda apenas os coeficientes positivos, ou seja, que indicam alteração positiva, isto é, aumento da chance de uma doença física $x$ em decorrência da presença de uma doença psiquiátrica $y$.
 
